@@ -1,0 +1,269 @@
+1. List Xotiradagi Tuzilishi
+
+my_list = [1, 2, 3]
+
+             PyListObject (my_list)
+          +----------------------------+
+          | ob_size = 3                |  # Foydalanilayotgan elementlar soni
+          | allocated = 4              |  # Ajratilgan umumiy joy
+          | ob_item (pointer to array) |---+
+          +----------------------------+   |
+                                           v
+                    +----------------+----------------+----------------+----------------+
+ ob_item array ---> |     ptr0       |     ptr1       |     ptr2       |     NULL       |
+                    +--------+-------+--------+-------+--------+-------+--------+-------+
+                             |                |                |
+                             v                v                v
+                     +--------------+ +--------------+ +--------------+
+                     | PyObject(1)  | | PyObject(2)  | | PyObject(3)  |
+                     +--------------+ +--------------+ +--------------+
+
+
+* ptr0, ptr1, ptr2 — bu int obyektlariga ko‘rsatkichlar
+* allocated = 4 — lekin hozircha faqat 3 tasi to‘ldirilgan
+* NULL yoki bo‘sh pointer oxirida zaxira joyni bildiradi
+
+
+my_list.append(4) -------*
+                         |
+                         v
+             PyListObject (hali o‘zgarmagan)
+          +----------------------------+
+          | ob_size = 4                |
+          | allocated = 4              |
+          | ob_item  ------------------+----------+
+          +----------------------------+          |
+                                                  |
+                                                  v
+                    +--------+--------+--------+--------+
+ ob_item array ---> | ptr0   | ptr1   | ptr2   | ptr3   |   ← to‘lib bo‘ldi
+                    +---+----+---+----+---+----+---+----+
+                        |        |        |       |
+                        v        v        v       v
+                    [Obj(1)] [Obj(2)] [Obj(3)] [Obj(4)]
+
+
+
+my_list.append(5)
+
+➕ 3. my_list.append(5) — joy yo‘q!, shuning uchun quyidagilar sodir bo‘ladi:
+🪄 A) Yangi joy ajratiladi (allocated = 8)
+🛠 B) Eski ob_item ko‘chirilib, yangi element qo‘shiladi
+🧹 C) Eski ob_item bo‘shatiladi
+🔁 D) ob_item pointer yangi joyga ko‘rsatiladi
+
+
+             PyListObject (o‘z joyida qoladi)
+          +----------------------------+
+          | ob_size = 5                |
+          | allocated = 8              |
+          | ob_item  ------------------+----------+
+          +----------------------------+          |
+                                                  |
+                                                  v
+      +--------+--------+--------+--------+--------+--------+--------+--------+
+      | ptr0   | ptr1   | ptr2   | ptr3   | ptr4   | NULL   | NULL   | NULL   |
+      +---+----+---+----+---+----+---+----+---+----+--------+--------+--------+
+          |        |        |        |        |
+          v        v        v        v        v
+      [Obj(1)] [Obj(2)] [Obj(3)] [Obj(4)] [Obj(5)]
+                            |        |        |
+                   *--------*        |        |
+                   |                 |        |
+                   |        *--------*        |
+my_list.pop(1)     |        |                 |
+                   |        |        *--------*
+                   |        |        |
+                   v        v        v
+      +--------+--------+--------+--------+--------+--------+--------+--------+
+      | ptr0   | ptr1   | ptr2   | ptr3   | NULL   | NULL   | NULL   | NULL   |
+      +---+----+---+----+---+----+---+----+---+----+--------+--------+--------+
+          |        |        |        |        
+          v        v        v        v   
+      [Obj(1)] [Obj(3)] [Obj(4)] [Obj(5)]
+
+
+
+print(20 in my_list)
+
+      +--------+--------+--------+--------+
+      | ptr0   | ptr1   | ptr2   | ptr3   |
+      +--------+--------+--------+--------+
+         |         |         |         |
+         v         v         v         v
+      [Obj(1)] [Obj(3)] [Obj(4)] [Obj(5)]
+          |         |         |         |
+          v         v         v         v
+     == 20? ❌   == 20? ❌  == 20? ❌  == 20? ❌
+
+     → Element not found → False
+
+
+
+
+
+
+
+
+
+
+2. Set Xotiradagi Tuzilishi  (unordered collection)
+
+my_set = {10, 20, 30} ------*
+                            |
+                            v
+             PySetObject (my_set)
+          +------------------------------+
+          | used = 3                     |  # To‘ldirilgan elementlar soni
+          | mask = 7                     |  # Hash table uzunligi
+          | table (entry array pointer)  |---+
+          +------------------------------+   |
+                                               v
+        +--------+--------+--------+--------+--------+--------+--------+--------+
+index → |  0     |   1    |   2    |   3    |   4    |   5    |   6    |   7    |
+        |--------|--------|--------|--------|--------|--------|--------|--------|
+        | EMPTY  | EMPTY  | ptrB   | ptrA   | EMPTY  | ptrC   | DUMMY  | EMPTY  |
+        +--------+--------+--------+--------+--------+--------+--------+--------+
+                           |        |                |
+                           v        v                v
+                      [Obj(20)] [Obj(10)]        [Obj(30)]
+
+
+Har bir element hash() orqali integerga aylantiriladi.
+
+Keyin index = hash & mask formulasi bilan joyi topiladi.
+
+Agar joy band bo‘lsa, probing orqali keyingi joylar tekshiriladi.
+
+O‘chirilgan (del) joylar DUMMY deb belgilanadi.
+
+
+print(20 in my_set)
+
+             PySetObject (my_set)
+          +------------------------------+
+          | used = 3                     |
+          | mask = 7                     |
+          | table (entry array pointer)  |---+
+          +------------------------------+   |
+                                             v
+        +--------+--------+--------+--------+--------+--------+--------+--------+
+index → |   0    |   1    |   2    |   3    |   4    |   5    |   6    |   7    |
+        |--------|--------|--------|--------|--------|--------|--------|--------|
+        | EMPTY  | EMPTY  | ptr20  | ptr10  | EMPTY  | ptr30  | DUMMY  | EMPTY  |
+        +--------+--------+--------+--------+--------+--------+--------+--------+
+                             |
+                             v
+                        [Obj(20)] ✅  → topildi!
+
+
+
+my_set = {10, 20, 30}
+new_set = {2, 5, 10}
+
+result = my_set | new_set      # yoki: my_set.union(new_set)
+print(result)                  # {2, 5, 10, 20, 30}
+
+
+result = my_set & new_set      # yoki: my_set.intersection(new_set)
+print(result)                  # {10}
+
+
+result = my_set - new_set      # yoki: my_set.difference(new_set)
+print(result)                  # {20, 30}
+
+
+result = my_set ^ new_set      # yoki: my_set.symmetric_difference(new_set)
+print(result)                  # {2, 5, 20, 30}
+
+
+my_set.add(40)
+print(my_set)                  # {10, 20, 30, 40}
+
+
+my_set.remove(20)              # 20 ni o‘chiradi (agar yo‘q bo‘lsa xatolik bo‘ladi)
+my_set.discard(50)            # xatolik bermasdan 50 ni olib tashlashga harakat qiladi
+
+
+my_set.clear()
+print(my_set)                  # set()
+
+
+copy_set = my_set.copy()
+
+
+
+
+
+
+3. Dict Xotiradagi Tuzilishi
+
+my_dict = {"a": 1, "b": 2}
+
+             PyDictObject (my_dict)
+          +------------------------------+
+          | used = 2                     |  # To‘ldirilgan elementlar soni
+          | ma_keys (pointer) ----------+----+
+          | ma_values (pointer)         |    |
+          +-----------------------------+    |
+                                             v
+    +-------------------------------------------+
+    | ma_keys:                                  |
+    | +------------+------------+-------------+ |
+    | | dk_size=8  | dk_nentries=2            | |
+    | +------------+------------+-------------+ |
+    | | dk_indices (hash index array)         | |
+    | +--------------------+------------------+ |
+    | | [idx_a]            | [idx_b]          | |
+    +-------------------------------------------+
+                           |             |
+                           v             v
+               [Hash(a), key='a']   [Hash(b), key='b']
+
+
+    +----------------------------------------+
+    | ma_values: [Obj(1), Obj(2), NULL...]   |
+    +----------------------------------------+
+
+
+print("a" in my_dict)
+
+    → dk_indices orqali 'a' ning hash indeksi topiladi
+    → keylar ichida 'a' bo‘yicha tekshiriladi ✅
+    → O(1) vaqt ichida mavjudligi aniqlanadi
+
+
+
+
+
+
+
+
+4. Linked List Tuzilishi
+
+class Node:
+    def __init__(self, val):
+        self.val = val
+        self.next = None
+
+# Head pointer — birinchi tugunga ishora qiladi
+# Har bir tugun keyingi tugunga ko‘rsatadi
+
+linked_list = Node(1)
+linked_list.next = Node(2)
+linked_list.next.next = Node(3)
+
+        Head
+         |
+         v
+     +--------+     +--------+     +--------+
+     | val=1  | --> | val=2  | --> | val=3  | --> None
+     | next --+     | next --+     | next --+
+     +--------+     +--------+     +--------+
+
+
+Traversal (o'tish/ko‘rish): har bir node ketma-ket tekshiriladi
+Qo‘shish/O‘chirish (insert/delete): O(n) vaqt talab qiladi
+
+
+
